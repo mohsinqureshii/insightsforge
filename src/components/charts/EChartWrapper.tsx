@@ -72,7 +72,7 @@ function buildBarOption(config: ChartConfig, data: QueryResult, dark: boolean): 
     series: isHorizontal
       ? series.map((s) => ({ ...s, type: 'bar' as const }))
       : series,
-  } satisfies EChartsOption
+  }
 }
 
 function buildLineOption(
@@ -114,7 +114,7 @@ function buildLineOption(
     xAxis: { type: 'category' as const, data: xValues, boundaryGap: !filled },
     yAxis: { type: 'value' as const },
     series,
-  } satisfies EChartsOption
+  }
 }
 
 function buildPieOption(
@@ -181,12 +181,12 @@ function buildScatterOption(config: ChartConfig, data: QueryResult, dark: boolea
     yAxis: { type: 'value' as const },
     series: [
       {
-        type: 'scatter' as const,
+        type: 'scatter',
         data: data.rows.map((r) => [r[xField] ?? 0, r[yField] ?? 0]),
         itemStyle: { color: colors[0] },
       },
-    ],
-  } satisfies EChartsOption
+    ] as EChartsOption['series'],
+  }
 }
 
 function buildGaugeOption(config: ChartConfig, data: QueryResult): EChartsOption {
@@ -216,7 +216,7 @@ function buildGaugeOption(config: ChartConfig, data: QueryResult): EChartsOption
         },
       },
     ],
-  } satisfies EChartsOption
+  }
 }
 
 function buildFunnelOption(config: ChartConfig, data: QueryResult): EChartsOption {
@@ -233,14 +233,14 @@ function buildFunnelOption(config: ChartConfig, data: QueryResult): EChartsOptio
     tooltip: { trigger: 'item' as const },
     series: [
       {
-        type: 'funnel' as const,
+        type: 'funnel',
         data: data.rows.map((r) => ({
           name: String(r[labelField] ?? ''),
           value: r[valueField] ?? 0,
         })),
       },
-    ],
-  } satisfies EChartsOption
+    ] as EChartsOption['series'],
+  }
 }
 
 function buildHeatmapOption(config: ChartConfig, data: QueryResult): EChartsOption {
@@ -264,8 +264,8 @@ function buildHeatmapOption(config: ChartConfig, data: QueryResult): EChartsOpti
     xAxis: { type: 'category' as const, data: xCategories },
     yAxis: { type: 'category' as const, data: yCategories },
     visualMap: { min: 0, max: Math.max(...data.rows.map((r) => Number(r[valueField] ?? 0))), calculable: true },
-    series: [{ type: 'heatmap' as const, data: heatData, label: { show: false } }],
-  } satisfies EChartsOption
+    series: [{ type: 'heatmap', data: heatData, label: { show: false } }] as EChartsOption['series'],
+  }
 }
 
 // ---------------------------------------------------------------------------
