@@ -6,23 +6,27 @@ import {
   BarChart3,
   Database,
   LayoutDashboard,
-  TrendingUp,
   Users,
   Zap,
+  Calendar,
+  Clock,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
 
 interface OverviewStats {
   totalReports: number
   totalDashboards: number
   totalDataSources: number
   totalUsers: number
-  recentReports: Array<{
+  activeSchedules: number
+  recentActivity: Array<{
     id: string
-    name: string
-    type: string
-    updatedAt: Date
-    createdBy: string
+    action: string
+    entityType: string | null
+    entityId: string | null
+    createdAt: Date
+    user: { name: string | null; email: string } | null
   }>
 }
 
@@ -32,23 +36,26 @@ async function getOverviewStats(tenantId: string): Promise<OverviewStats> {
     totalDashboards,
     totalDataSources,
     totalUsers,
-    recentReports,
+    activeSchedules,
+    recentActivity,
   ] = await Promise.all([
     prisma.ifReport.count({ where: { tenantId, deletedAt: null } }),
     prisma.ifDashboard.count({ where: { tenantId, deletedAt: null } }),
     prisma.ifDataSource.count({ where: { tenantId, deletedAt: null, isActive: true } }),
     prisma.tenantUser.count({ where: { tenantId, inviteStatus: 'accepted' } }),
-    prisma.ifReport.findMany({
-      where: { tenantId, deletedAt: null },
+    prisma.ifSchedule.count({ where: { tenantId, isActive: true } }),
+    prisma.ifAuditLog.findMany({
+      where: { tenantId },
       select: {
         id: true,
-        name: true,
-        type: true,
-        updatedAt: true,
-        createdBy: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true,
+        user: { select: { name: true, email: true } },
       },
-      orderBy: { updatedAt: 'desc' },
-      take: 5,
+      orderBy: { createdAt: 'desc' },
+      take: 10,
     }),
   ])
 
@@ -57,8 +64,16 @@ async function getOverviewStats(tenantId: string): Promise<OverviewStats> {
     totalDashboards,
     totalDataSources,
     totalUsers,
-    recentReports,
+    activeSchedules,
+    recentActivity,
   }
+}
+
+function formatAction(action: string): string {
+  return action
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
 }
 
 export default async function DashboardPage() {
@@ -87,6 +102,7 @@ export default async function DashboardPage() {
       description: 'Total reports',
       color: 'text-primary-600',
       bg: 'bg-primary-100 dark:bg-primary-900/30',
+      href: '/reports',
     },
     {
       label: 'Dashboards',
@@ -95,6 +111,7 @@ export default async function DashboardPage() {
       description: 'Total dashboards',
       color: 'text-blue-600',
       bg: 'bg-blue-100 dark:bg-blue-900/30',
+      href: '/dashboards',
     },
     {
       label: 'Data Sources',
@@ -103,6 +120,16 @@ export default async function DashboardPage() {
       description: 'Connected sources',
       color: 'text-green-600',
       bg: 'bg-green-100 dark:bg-green-900/30',
+      href: '/data-sources',
+    },
+    {
+      label: 'Active Schedules',
+      value: formatNumber(stats.activeSchedules),
+      icon: Calendar,
+      description: 'Scheduled deliveries',
+      color: 'text-purple-600',
+      bg: 'bg-purple-100 dark:bg-purple-900/30',
+      href: '/schedules',
     },
     {
       label: 'Team Members',
@@ -111,6 +138,34 @@ export default async function DashboardPage() {
       description: 'Active members',
       color: 'text-amber-600',
       bg: 'bg-amber-100 dark:bg-amber-900/30',
+      href: '/settings/team',
+    },
+  ]
+
+  const quickActions = [
+    {
+      label: 'New Report',
+      href: '/reports/new',
+      icon: BarChart3,
+      desc: 'Build a new chart or table',
+    },
+    {
+      label: 'New Dashboard',
+      href: '/dashboards/new',
+      icon: LayoutDashboard,
+      desc: 'Combine reports into a dashboard',
+    },
+    {
+      label: 'Add Data Source',
+      href: '/data-sources/new',
+      icon: Database,
+      desc: 'Connect a new data source',
+    },
+    {
+      label: 'Invite User',
+      href: '/settings/team',
+      icon: Users,
+      desc: 'Add members to your workspace',
     },
   ]
 
@@ -119,7 +174,7 @@ export default async function DashboardPage() {
       {/* Welcome header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome back, {session.user.name?.split(' ')[0] ?? 'there'} 👋
+          Welcome back, {session.user.name?.split(' ')[0] ?? 'there'}
         </h1>
         <p className="mt-1 text-muted-foreground">
           Here&apos;s an overview of your analytics workspace.
@@ -127,54 +182,56 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardDescription>{stat.label}</CardDescription>
-              <div className={`rounded-lg p-2 ${stat.bg}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
+          <Link key={stat.label} href={stat.href}>
+            <Card className="hover:border-primary/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardDescription>{stat.label}</CardDescription>
+                <div className={`rounded-lg p-2 ${stat.bg}`}>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Reports */}
+        {/* Recent Activity Feed */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4" />
-              Recent Reports
+              <Clock className="h-4 w-4" />
+              Recent Activity
             </CardTitle>
-            <CardDescription>Latest updated reports in your workspace</CardDescription>
+            <CardDescription>Last 10 events in your workspace</CardDescription>
           </CardHeader>
           <CardContent>
-            {stats.recentReports.length === 0 ? (
+            {stats.recentActivity.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                No reports yet.{' '}
-                <a href="/dashboard/reports/new" className="text-primary-600 hover:underline">
-                  Create your first report
-                </a>
+                No activity yet.
               </div>
             ) : (
               <div className="space-y-3">
-                {stats.recentReports.map((report) => (
+                {stats.recentActivity.map((entry) => (
                   <div
-                    key={report.id}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                    key={entry.id}
+                    className="flex items-start justify-between rounded-lg border px-3 py-2 text-sm"
                   >
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium">{report.name}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{formatAction(entry.action)}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {entry.user?.name ?? entry.user?.email ?? 'System'}
+                        {entry.entityType ? ` · ${entry.entityType}` : ''}
+                      </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatRelativeTime(report.updatedAt)}
+                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                      {formatRelativeTime(entry.createdAt)}
                     </span>
                   </div>
                 ))}
@@ -183,7 +240,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Quick actions */}
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -194,32 +251,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                {
-                  label: 'New Report',
-                  href: '/dashboard/reports/new',
-                  icon: BarChart3,
-                  desc: 'Build a new chart or table',
-                },
-                {
-                  label: 'New Dashboard',
-                  href: '/dashboard/dashboards/new',
-                  icon: LayoutDashboard,
-                  desc: 'Combine reports into a dashboard',
-                },
-                {
-                  label: 'Connect Data',
-                  href: '/dashboard/data-sources/new',
-                  icon: Database,
-                  desc: 'Add a new data source',
-                },
-                {
-                  label: 'Invite Team',
-                  href: '/dashboard/settings/team',
-                  icon: Users,
-                  desc: 'Add members to your workspace',
-                },
-              ].map((action) => (
+              {quickActions.map((action) => (
                 <a
                   key={action.label}
                   href={action.href}
