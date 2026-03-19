@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import type { ConnectorType } from '@/types/insightsforge'
+import { ConnectorHealthCard } from '@/components/data-sources/ConnectorHealthCard'
+import type { ConnectorHealthStatus } from '@/components/data-sources/ConnectorHealthCard'
 
 interface DataSourceListItem {
   id: string
@@ -65,6 +67,8 @@ const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   csv_upload: 'CSV Upload',
   rest_api: 'REST API',
   google_sheets: 'Google Sheets',
+  centre3: 'Centre3',
+  opssense: 'OpsSense',
 }
 
 const CONNECTOR_COLORS: Record<ConnectorType, string> = {
@@ -80,6 +84,8 @@ const CONNECTOR_COLORS: Record<ConnectorType, string> = {
   csv_upload: 'text-violet-600 bg-violet-100 dark:bg-violet-900/30',
   rest_api: 'text-pink-600 bg-pink-100 dark:bg-pink-900/30',
   google_sheets: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30',
+  centre3: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
+  opssense: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30',
 }
 
 export default async function DataSourcesPage() {
@@ -100,6 +106,17 @@ export default async function DataSourcesPage() {
 
   const dataSources = await getDataSources(tenantId)
 
+  // Build health card data from the list — a source is "healthy" if isActive
+  // is true and it has been tested at least once. Sources that have never been
+  // tested are "unknown"; inactive sources are "error".
+  const healthItems = dataSources.map((ds) => {
+    let status: ConnectorHealthStatus = 'unknown'
+    if (ds.lastTestedAt !== null) {
+      status = ds.isActive ? 'healthy' : 'error'
+    }
+    return { ds, status }
+  })
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -117,6 +134,26 @@ export default async function DataSourcesPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Connector Health */}
+      {healthItems.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Connector Health
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {healthItems.map(({ ds, status }) => (
+              <ConnectorHealthCard
+                key={ds.id}
+                name={ds.name}
+                type={ds.type}
+                lastTestedAt={ds.lastTestedAt}
+                status={status}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Content */}
       {dataSources.length === 0 ? (

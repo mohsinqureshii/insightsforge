@@ -21,6 +21,9 @@ export type { OpsSenseConfig, OpsSenseEndpoint, OpsSenseFieldDefinition, OpsSens
 
 // Singleton connector instances (created once, stateless)
 const connectorRegistry = new Map<string, BaseConnector>()
+// Registry for pre-built connectors that do not extend BaseConnector
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prebuiltRegistry = new Map<string, any>()
 
 function getOrCreate<T extends BaseConnector>(key: string, factory: () => T): T {
   if (!connectorRegistry.has(key)) {
@@ -77,7 +80,10 @@ export function getConnector(type: ConnectorType): BaseConnector | null {
  * rather than the generic BaseConnector interface.
  */
 export function getCentre3Connector(): Centre3Connector {
-  return getOrCreate('centre3', () => new Centre3Connector()) as unknown as Centre3Connector
+  if (!prebuiltRegistry.has('centre3')) {
+    prebuiltRegistry.set('centre3', new Centre3Connector())
+  }
+  return prebuiltRegistry.get('centre3') as Centre3Connector
 }
 
 /**
@@ -86,7 +92,10 @@ export function getCentre3Connector(): Centre3Connector {
  * rather than the generic BaseConnector interface.
  */
 export function getOpsSenseConnector(): OpsSenseConnector {
-  return getOrCreate('opssense', () => new OpsSenseConnector()) as unknown as OpsSenseConnector
+  if (!prebuiltRegistry.has('opssense')) {
+    prebuiltRegistry.set('opssense', new OpsSenseConnector())
+  }
+  return prebuiltRegistry.get('opssense') as OpsSenseConnector
 }
 
 /**
@@ -185,6 +194,18 @@ export const CONNECTOR_METADATA: Record<
     icon: 'table',
     description: 'Connect to Google Sheets',
     supported: false,
+  },
+  centre3: {
+    label: 'Centre3',
+    icon: 'server',
+    description: 'Pre-built connector for Centre3 data centre management platform',
+    supported: true,
+  },
+  opssense: {
+    label: 'OpsSense',
+    icon: 'wrench',
+    description: 'Pre-built connector for OpsSense CMMS / facilities management platform',
+    supported: true,
   },
 }
 

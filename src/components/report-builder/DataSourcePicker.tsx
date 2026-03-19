@@ -27,6 +27,8 @@ const CONNECTOR_ICONS: Record<ConnectorType, string> = {
   csv_upload: '📄',
   rest_api: '🌐',
   google_sheets: '📊',
+  centre3: '🏢',
+  opssense: '🔧',
 }
 
 interface DataSourcePickerProps {

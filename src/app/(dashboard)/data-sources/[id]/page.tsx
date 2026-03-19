@@ -79,6 +79,8 @@ const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   csv_upload: 'CSV Upload',
   rest_api: 'REST API',
   google_sheets: 'Google Sheets',
+  centre3: 'Centre3',
+  opssense: 'OpsSense',
 }
 
 export default async function DataSourceDetailPage({
