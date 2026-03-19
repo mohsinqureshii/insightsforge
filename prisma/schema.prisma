@@ -42,6 +42,8 @@ enum ConnectorType {
   csv_upload
   rest_api
   google_sheets
+  centre3
+  opssense
 }
 
 enum ReportType {

@@ -3,6 +3,8 @@ import { PostgreSQLConnector } from './postgresql'
 import { RestApiConnector } from './rest-api'
 import { CsvConnector } from './csv'
 import { WebhookConnector } from './webhook'
+import { Centre3Connector } from './centre3'
+import { OpsSenseConnector } from './opssense'
 import type { ConnectorType } from '@/types/insightsforge'
 
 // Re-export all types and connectors
@@ -12,6 +14,10 @@ export { PostgreSQLConnector } from './postgresql'
 export { RestApiConnector } from './rest-api'
 export { CsvConnector } from './csv'
 export { WebhookConnector, generateWebhookCredentials, verifyWebhookSignature, storeWebhookEvent } from './webhook'
+export { Centre3Connector, centre3Connector, CENTRE3_ENDPOINTS } from './centre3'
+export type { Centre3Config, Centre3Endpoint, Centre3FieldDefinition, Centre3FieldType } from './centre3'
+export { OpsSenseConnector, opsSenseConnector, OPSSENSE_ENDPOINTS } from './opssense'
+export type { OpsSenseConfig, OpsSenseEndpoint, OpsSenseFieldDefinition, OpsSenseFieldType } from './opssense'
 
 // Singleton connector instances (created once, stateless)
 const connectorRegistry = new Map<string, BaseConnector>()
@@ -53,9 +59,34 @@ export function getConnector(type: ConnectorType): BaseConnector | null {
     case 'google_sheets':
       return null
 
+    // Pre-built connectors — managed via their own connector classes.
+    // These do not extend BaseConnector directly; use getCentre3Connector()
+    // or getOpsSenseConnector() for full access to their typed APIs.
+    case 'centre3':
+    case 'opssense':
+      return null
+
     default:
       return null
   }
+}
+
+/**
+ * Get the Centre3 connector instance.
+ * Centre3 exposes testConnection(), getFieldCatalogue(), and fetchData()
+ * rather than the generic BaseConnector interface.
+ */
+export function getCentre3Connector(): Centre3Connector {
+  return getOrCreate('centre3', () => new Centre3Connector()) as unknown as Centre3Connector
+}
+
+/**
+ * Get the OpsSense connector instance.
+ * OpsSense exposes testConnection(), getFieldCatalogue(), and fetchData()
+ * rather than the generic BaseConnector interface.
+ */
+export function getOpsSenseConnector(): OpsSenseConnector {
+  return getOrCreate('opssense', () => new OpsSenseConnector()) as unknown as OpsSenseConnector
 }
 
 /**
@@ -65,6 +96,8 @@ export const SUPPORTED_CONNECTORS: ConnectorType[] = [
   'postgresql',
   'rest_api',
   'csv_upload',
+  'centre3',
+  'opssense',
 ]
 
 /**

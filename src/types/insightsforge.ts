@@ -19,6 +19,8 @@ export type ConnectorType =
   | 'csv_upload'
   | 'rest_api'
   | 'google_sheets'
+  | 'centre3'
+  | 'opssense'
 
 export type ReportType = 'table' | 'chart' | 'metric' | 'pivot' | 'funnel' | 'cohort' | 'custom_sql'
 export type ChartType =
