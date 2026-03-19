@@ -148,7 +148,7 @@ function buildPieOption(
     series: [
       {
         name: data.columns.find((c) => c.field === valueField)?.label ?? '',
-        type: 'pie' as const,
+        type: 'pie',
         radius: isDonut ? [`${innerRadius}%`, '70%'] : '70%',
         data: pieData,
         label: {
@@ -161,8 +161,8 @@ function buildPieOption(
                 : '{b}: {c}',
         },
       },
-    ],
-  } satisfies EChartsOption
+    ] as EChartsOption['series'],
+  }
 }
 
 function buildScatterOption(config: ChartConfig, data: QueryResult, dark: boolean): EChartsOption {
