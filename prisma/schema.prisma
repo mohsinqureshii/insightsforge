@@ -237,6 +237,9 @@ model User {
   favourites   IfFavourite[]
   apiKeys      IfApiKey[]
   queryJobs    IfQueryJob[]
+  createdAlertRules IfAlertRule[] @relation("AlertRuleCreator")
+  notifications    IfNotification[]
+  announcementDismissals IfAnnouncementDismissal[]
 
   @@map("users")
 }
@@ -269,6 +272,10 @@ model Tenant {
   auditLogs     IfAuditLog[]
   apiKeys       IfApiKey[]
   shares        IfShare[]
+  alertRules    IfAlertRule[]
+  notifications IfNotification[]
+  dataPolicies  IfDataPolicy[]
+  onboarding    IfOnboardingProgress?
 
   @@map("tenants")
 }
@@ -318,6 +325,7 @@ model IfDataSource {
   tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reports         IfReport[]
   queryJobs       IfQueryJob[]
+  dataPolicies    IfDataPolicy[]
 
   @@index([tenantId])
   @@map("if_data_sources")
@@ -357,6 +365,7 @@ model IfReport {
   comments       IfComment[]
   versions       IfVersion[]
   queryJobs      IfQueryJob[]
+  alertRules     IfAlertRule[]
 
   @@index([tenantId])
   @@index([dataSourceId])
@@ -653,4 +662,239 @@ model IfQueryJob {
   @@index([status])
   @@index([queuedAt])
   @@map("if_query_jobs")
+}
+
+// ============================================================
+// SPRINT 23 — ALERTING & NOTIFICATIONS
+// ============================================================
+
+enum AlertCondition {
+  greater_than
+  less_than
+  equals
+  not_equals
+  percentage_change_up
+  percentage_change_down
+}
+
+enum AlertSeverity {
+  info
+  warning
+  critical
+}
+
+enum AlertState {
+  ok
+  firing
+  silenced
+}
+
+enum NotificationChannel {
+  in_app
+  email
+  slack
+}
+
+enum NotificationStatus {
+  unread
+  read
+  dismissed
+}
+
+model IfAlertRule {
+  id           String         @id @default(cuid())
+  tenantId     String
+  createdById  String
+  name         String
+  description  String?
+  reportId     String?
+  metricField  String         // field/column to evaluate
+  condition    AlertCondition
+  threshold    Float
+  severity     AlertSeverity  @default(warning)
+  state        AlertState     @default(ok)
+  channels     Json           @default("[]") // NotificationChannel[]
+  slackWebhook String?        // per-rule Slack webhook override
+  isActive     Boolean        @default(true)
+  lastFiredAt  DateTime?
+  lastCheckedAt DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy    User           @relation("AlertRuleCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  report       IfReport?      @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  firings      IfAlertFiring[]
+  notifications IfNotification[]
+
+  @@index([tenantId])
+  @@index([reportId])
+  @@index([state])
+  @@map("if_alert_rules")
+}
+
+model IfAlertFiring {
+  id          String    @id @default(cuid())
+  tenantId    String
+  alertRuleId String
+  value       Float     // actual metric value at time of firing
+  firedAt     DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  alertRule   IfAlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([alertRuleId])
+  @@index([firedAt])
+  @@map("if_alert_firings")
+}
+
+model IfNotification {
+  id          String             @id @default(cuid())
+  tenantId    String
+  userId      String
+  alertRuleId String?
+  channel     NotificationChannel @default(in_app)
+  status      NotificationStatus  @default(unread)
+  title       String
+  body        String             @db.Text
+  link        String?
+  metadata    Json               @default("{}")
+  createdAt   DateTime           @default(now())
+  readAt      DateTime?
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertRule   IfAlertRule?       @relation(fields: [alertRuleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("if_notifications")
+}
+
+// ============================================================
+// SPRINT 24 — DATA GOVERNANCE
+// ============================================================
+
+enum PolicyType {
+  row_filter
+  column_mask
+  column_deny
+}
+
+enum MaskingStrategy {
+  redact       // Replace with [REDACTED]
+  partial      // Show first N chars + ****
+  hash         // SHA-256 hash
+  null_out     // Return null
+}
+
+model IfDataPolicy {
+  id           String          @id @default(cuid())
+  tenantId     String
+  dataSourceId String
+  name         String
+  description  String?
+  policyType   PolicyType
+  targetColumn String?         // null for row_filter policies
+  filterExpr   String?         @db.Text // SQL-safe filter expression for row_filter
+  maskingStrategy MaskingStrategy?
+  maskingParam Int?            // e.g. chars to reveal for partial masking
+  appliesToRoles Json          @default("[]") // Role[] — empty = applies to all
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dataSource   IfDataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataSourceId])
+  @@map("if_data_policies")
+}
+
+// ============================================================
+// SPRINT 25 — FEATURE FLAGS & ONBOARDING
+// ============================================================
+
+enum FlagScope {
+  global      // applies to all tenants
+  tenant      // overridden per-tenant
+}
+
+model IfFeatureFlag {
+  id           String    @id @default(cuid())
+  key          String    @unique   // e.g. "ai_nlq", "embed_sdk"
+  description  String?
+  scope        FlagScope @default(global)
+  enabledGlobally Boolean @default(false)
+  enabledForPlans Json    @default("[]") // Plan[] that have it on by default
+  overrides    Json      @default("{}") // { [tenantId]: boolean }
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("if_feature_flags")
+}
+
+model IfOnboardingProgress {
+  id         String   @id @default(cuid())
+  tenantId   String   @unique
+  steps      Json     @default("{}") // { [stepKey]: boolean }
+  dismissed  Boolean  @default(false)
+  completedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("if_onboarding_progress")
+}
+
+// ============================================================
+// SPRINT 26 — ANNOUNCEMENTS & UNIFIED SEARCH
+// ============================================================
+
+enum AnnouncementType {
+  info
+  warning
+  feature
+  maintenance
+}
+
+model IfAnnouncement {
+  id          String           @id @default(cuid())
+  title       String
+  body        String           @db.Text
+  type        AnnouncementType @default(info)
+  ctaLabel    String?
+  ctaUrl      String?
+  startsAt    DateTime         @default(now())
+  endsAt      DateTime?
+  targetPlans Json             @default("[]") // Plan[] — empty = all plans
+  isDismissible Boolean        @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  dismissals  IfAnnouncementDismissal[]
+
+  @@index([startsAt])
+  @@index([endsAt])
+  @@map("if_announcements")
+}
+
+model IfAnnouncementDismissal {
+  id             String         @id @default(cuid())
+  announcementId String
+  userId         String
+  tenantId       String
+  dismissedAt    DateTime       @default(now())
+
+  announcement   IfAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+  @@map("if_announcement_dismissals")
 }
