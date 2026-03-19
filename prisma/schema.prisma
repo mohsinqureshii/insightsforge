@@ -1,0 +1,654 @@
+// InsightForge - Complete Prisma Schema
+// Multi-tenant analytics SaaS platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Plan {
+  starter
+  business
+  enterprise
+}
+
+enum Role {
+  super_admin
+  tenant_admin
+  analytics_admin
+  builder
+  viewer
+  api_user
+}
+
+enum ConnectorType {
+  postgresql
+  mysql
+  mssql
+  bigquery
+  snowflake
+  redshift
+  mongodb
+  clickhouse
+  sqlite
+  csv_upload
+  rest_api
+  google_sheets
+}
+
+enum ReportType {
+  table
+  chart
+  metric
+  pivot
+  funnel
+  cohort
+  custom_sql
+}
+
+enum ChartType {
+  bar
+  line
+  area
+  pie
+  donut
+  scatter
+  bubble
+  heatmap
+  treemap
+  funnel
+  gauge
+  sankey
+  radar
+}
+
+enum WidgetSize {
+  small
+  medium
+  large
+  full
+}
+
+enum Visibility {
+  private
+  tenant
+  public
+  shared_link
+}
+
+enum ScheduleFrequency {
+  hourly
+  daily
+  weekly
+  monthly
+  cron
+}
+
+enum DeliveryChannel {
+  email
+  slack
+  webhook
+  s3
+}
+
+enum DeliveryStatus {
+  pending
+  running
+  success
+  failed
+  skipped
+}
+
+enum JobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+  timeout
+}
+
+enum AuditAction {
+  login
+  logout
+  login_failed
+  mfa_enabled
+  mfa_disabled
+  password_changed
+  user_invited
+  user_removed
+  role_changed
+  tenant_created
+  tenant_updated
+  plan_changed
+  data_source_created
+  data_source_updated
+  data_source_deleted
+  data_source_tested
+  report_created
+  report_updated
+  report_deleted
+  report_shared
+  dashboard_created
+  dashboard_updated
+  dashboard_deleted
+  dashboard_shared
+  api_key_created
+  api_key_revoked
+  export_downloaded
+  schedule_created
+  schedule_updated
+  schedule_deleted
+  query_executed
+  settings_updated
+}
+
+enum TenantStatus {
+  active
+  suspended
+  cancelled
+  trial
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  cancelled
+}
+
+// ============================================================
+// NEXTAUTH TABLES (required by @auth/prisma-adapter)
+// ============================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================================
+// CORE PLATFORM TABLES
+// ============================================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  emailVerified  DateTime?
+  name           String?
+  image          String?
+  passwordHash   String?
+  mfaEnabled     Boolean   @default(false)
+  mfaSecret      String?   // AES-encrypted TOTP secret
+  mfaBackupCodes String?   // AES-encrypted JSON array
+  lastLoginAt    DateTime?
+  lastLoginIp    String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  tenantUsers  TenantUser[]
+  auditLogs    IfAuditLog[]
+  comments     IfComment[]
+  favourites   IfFavourite[]
+  apiKeys      IfApiKey[]
+  queryJobs    IfQueryJob[]
+
+  @@map("users")
+}
+
+model Tenant {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  plan        Plan         @default(starter)
+  status      TenantStatus @default(trial)
+  logoUrl     String?
+  domain      String?      @unique // custom domain
+  maxUsers    Int          @default(5)
+  maxSources  Int          @default(3)
+  maxReports  Int          @default(20)
+  settings    Json         @default("{}") // theme, timezone, locale, etc.
+  stripeCustomerId    String? @unique
+  stripeSubscriptionId String? @unique
+  trialEndsAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  tenantUsers   TenantUser[]
+  dataSources   IfDataSource[]
+  reports       IfReport[]
+  dashboards    IfDashboard[]
+  folders       IfFolder[]
+  schedules     IfSchedule[]
+  auditLogs     IfAuditLog[]
+  apiKeys       IfApiKey[]
+  shares        IfShare[]
+
+  @@map("tenants")
+}
+
+model TenantUser {
+  id         String       @id @default(cuid())
+  tenantId   String
+  userId     String
+  role       Role         @default(viewer)
+  inviteStatus InviteStatus @default(accepted)
+  inviteToken  String?    @unique
+  inviteExpires DateTime?
+  invitedBy  String?
+  joinedAt   DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("tenant_users")
+}
+
+// ============================================================
+// DATA SOURCES
+// ============================================================
+
+model IfDataSource {
+  id              String        @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  type            ConnectorType
+  config          String        // AES-encrypted JSON: host, port, db, user, pass, etc.
+  schema          Json?         // cached schema metadata
+  lastTestedAt    DateTime?
+  lastSyncAt      DateTime?
+  isActive        Boolean       @default(true)
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reports         IfReport[]
+  queryJobs       IfQueryJob[]
+
+  @@index([tenantId])
+  @@map("if_data_sources")
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+
+model IfReport {
+  id             String      @id @default(cuid())
+  tenantId       String
+  dataSourceId   String?
+  folderId       String?
+  name           String
+  description    String?
+  type           ReportType  @default(table)
+  chartType      ChartType?
+  query          String?     @db.Text // SQL or query config JSON
+  config         Json        @default("{}") // columns, filters, sorts, viz config
+  visibility     Visibility  @default(private)
+  isFeatured     Boolean     @default(false)
+  viewCount      Int         @default(0)
+  createdBy      String
+  lastRunAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dataSource     IfDataSource?   @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  folder         IfFolder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  widgets        IfDashboardWidget[]
+  shares         IfShare[]
+  schedules      IfSchedule[]
+  favourites     IfFavourite[]
+  comments       IfComment[]
+  versions       IfVersion[]
+  queryJobs      IfQueryJob[]
+
+  @@index([tenantId])
+  @@index([dataSourceId])
+  @@index([folderId])
+  @@map("if_reports")
+}
+
+// ============================================================
+// DASHBOARDS
+// ============================================================
+
+model IfDashboard {
+  id          String     @id @default(cuid())
+  tenantId    String
+  folderId    String?
+  name        String
+  description String?
+  layout      Json       @default("[]") // react-grid-layout config
+  config      Json       @default("{}") // theme, refresh interval, filters
+  visibility  Visibility @default(private)
+  isFeatured  Boolean    @default(false)
+  viewCount   Int        @default(0)
+  createdBy   String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folder      IfFolder?           @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  widgets     IfDashboardWidget[]
+  shares      IfShare[]
+  schedules   IfSchedule[]
+  favourites  IfFavourite[]
+  comments    IfComment[]
+  versions    IfVersion[]
+
+  @@index([tenantId])
+  @@index([folderId])
+  @@map("if_dashboards")
+}
+
+model IfDashboardWidget {
+  id          String     @id @default(cuid())
+  dashboardId String
+  reportId    String?
+  title       String?
+  type        String     // report, metric, text, image, embed
+  size        WidgetSize @default(medium)
+  position    Json       // { x, y, w, h } for grid layout
+  config      Json       @default("{}") // widget-specific overrides
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  dashboard   IfDashboard  @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  report      IfReport?    @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([dashboardId])
+  @@index([reportId])
+  @@map("if_dashboard_widgets")
+}
+
+// ============================================================
+// SHARING
+// ============================================================
+
+model IfShare {
+  id           String     @id @default(cuid())
+  tenantId     String
+  token        String     @unique @default(cuid())
+  reportId     String?
+  dashboardId  String?
+  createdBy    String
+  expiresAt    DateTime?
+  passwordHash String?    // optional password protection
+  viewCount    Int        @default(0)
+  isActive     Boolean    @default(true)
+  allowDownload Boolean   @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  report       IfReport?    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  dashboard    IfDashboard? @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([token])
+  @@map("if_shares")
+}
+
+// ============================================================
+// SCHEDULES & DELIVERY
+// ============================================================
+
+model IfSchedule {
+  id           String            @id @default(cuid())
+  tenantId     String
+  reportId     String?
+  dashboardId  String?
+  name         String
+  frequency    ScheduleFrequency @default(daily)
+  cronExpr     String?           // custom cron expression
+  timezone     String            @default("UTC")
+  channel      DeliveryChannel   @default(email)
+  recipients   Json              // array of email/webhook/slack targets
+  config       Json              @default("{}") // format, filters, subject template
+  isActive     Boolean           @default(true)
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  createdBy    String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  report       IfReport?     @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  dashboard    IfDashboard?  @relation(fields: [dashboardId], references: [id], onDelete: SetNull)
+  deliveryLogs IfDeliveryLog[]
+
+  @@index([tenantId])
+  @@index([nextRunAt])
+  @@map("if_schedules")
+}
+
+model IfDeliveryLog {
+  id         String         @id @default(cuid())
+  scheduleId String
+  status     DeliveryStatus @default(pending)
+  channel    DeliveryChannel
+  recipients Json
+  error      String?        @db.Text
+  durationMs Int?
+  startedAt  DateTime       @default(now())
+  completedAt DateTime?
+
+  schedule   IfSchedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@map("if_delivery_log")
+}
+
+// ============================================================
+// ORGANISATION FEATURES
+// ============================================================
+
+model IfFavourite {
+  id          String   @id @default(cuid())
+  userId      String
+  reportId    String?
+  dashboardId String?
+  createdAt   DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report      IfReport?    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  dashboard   IfDashboard? @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reportId])
+  @@unique([userId, dashboardId])
+  @@index([userId])
+  @@map("if_favourites")
+}
+
+model IfFolder {
+  id          String    @id @default(cuid())
+  tenantId    String
+  parentId    String?
+  name        String
+  description String?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent      IfFolder?     @relation("FolderTree", fields: [parentId], references: [id])
+  children    IfFolder[]    @relation("FolderTree")
+  reports     IfReport[]
+  dashboards  IfDashboard[]
+
+  @@index([tenantId])
+  @@index([parentId])
+  @@map("if_folders")
+}
+
+model IfComment {
+  id          String    @id @default(cuid())
+  userId      String
+  reportId    String?
+  dashboardId String?
+  parentId    String?   // threaded comments
+  body        String    @db.Text
+  isResolved  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report      IfReport?    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  dashboard   IfDashboard? @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  parent      IfComment?   @relation("CommentThread", fields: [parentId], references: [id])
+  replies     IfComment[]  @relation("CommentThread")
+
+  @@index([reportId])
+  @@index([dashboardId])
+  @@map("if_comments")
+}
+
+model IfVersion {
+  id          String    @id @default(cuid())
+  reportId    String?
+  dashboardId String?
+  version     Int
+  snapshot    Json      // full config snapshot at this version
+  changeSummary String?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  report      IfReport?    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  dashboard   IfDashboard? @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([dashboardId])
+  @@map("if_versions")
+}
+
+// ============================================================
+// SECURITY & AUDIT
+// ============================================================
+
+model IfAuditLog {
+  id         String      @id @default(cuid())
+  tenantId   String?
+  userId     String?
+  action     AuditAction
+  entityType String?     // 'report', 'dashboard', 'user', etc.
+  entityId   String?
+  metadata   Json        @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  tenant     Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("if_audit_log")
+}
+
+model IfApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  userId      String
+  name        String
+  keyHash     String    @unique // SHA-256 of the actual key
+  keyPrefix   String    // first 8 chars shown to user (e.g. "if_live_")
+  scopes      Json      @default("[]") // ['reports:read', 'dashboards:write', etc.]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([keyHash])
+  @@map("if_api_keys")
+}
+
+model IfQueryJob {
+  id           String    @id @default(cuid())
+  tenantId     String
+  userId       String
+  dataSourceId String?
+  reportId     String?
+  query        String    @db.Text
+  status       JobStatus @default(queued)
+  resultKey    String?   // S3 key or Redis key for result cache
+  rowCount     Int?
+  durationMs   Int?
+  error        String?   @db.Text
+  queuedAt     DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  expiresAt    DateTime? // when to purge cached result
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataSource   IfDataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  report       IfReport?     @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([queuedAt])
+  @@map("if_query_jobs")
+}
