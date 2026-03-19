@@ -30,6 +30,21 @@ function isApiKeyRoute(pathname: string): boolean {
   return API_KEY_ROUTES.some((route) => pathname.startsWith(route))
 }
 
+function buildCsp(): string {
+  const directives: string[] = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for ECharts
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ]
+  return directives.join('; ')
+}
+
 export default auth(async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
   const session = (req as unknown as { auth: { user?: { id: string } } | null }).auth
@@ -73,7 +88,7 @@ export default auth(async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Add tenant header from session
+  // Build response with security + tenant headers
   const response = NextResponse.next()
 
   const activeTenantId = (session as unknown as { activeTenantId?: string }).activeTenantId
@@ -83,14 +98,19 @@ export default auth(async function middleware(req: NextRequest) {
 
   // Security headers
   response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('X-Frame-Options', 'SAMEORIGIN')
-  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-XSS-Protection', '0') // Disabled in favour of CSP
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  )
+  response.headers.set('Content-Security-Policy', buildCsp())
 
   if (process.env.NODE_ENV === 'production') {
     response.headers.set(
       'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains',
+      'max-age=63072000; includeSubDomains; preload',
     )
   }
 

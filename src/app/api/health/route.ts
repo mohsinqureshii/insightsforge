@@ -3,55 +3,66 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import type { ApiResponse } from '@/types/insightsforge'
 
+interface ServiceStatus {
+  status: 'up' | 'down'
+  latencyMs?: number
+}
+
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy'
   version: string
   timestamp: string
+  uptimeSeconds: number
   services: {
-    database: 'up' | 'down'
-    redis: 'up' | 'down'
+    database: ServiceStatus
+    redis: ServiceStatus
   }
-  uptime: number
+}
+
+async function checkDatabase(): Promise<ServiceStatus> {
+  const t0 = Date.now()
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    return { status: 'up', latencyMs: Date.now() - t0 }
+  } catch {
+    return { status: 'down' }
+  }
+}
+
+async function checkRedis(): Promise<ServiceStatus> {
+  const t0 = Date.now()
+  try {
+    await redis.ping()
+    return { status: 'up', latencyMs: Date.now() - t0 }
+  } catch {
+    return { status: 'down' }
+  }
 }
 
 export async function GET(): Promise<NextResponse<ApiResponse<HealthStatus>>> {
-  const startTime = Date.now()
+  const [database, redisService] = await Promise.all([checkDatabase(), checkRedis()])
 
-  let dbStatus: 'up' | 'down' = 'down'
-  let redisStatus: 'up' | 'down' = 'down'
+  const allUp = database.status === 'up' && redisService.status === 'up'
+  const anyUp = database.status === 'up' || redisService.status === 'up'
 
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    dbStatus = 'up'
-  } catch {
-    dbStatus = 'down'
-  }
-
-  try {
-    await redis.ping()
-    redisStatus = 'up'
-  } catch {
-    redisStatus = 'down'
-  }
-
-  const isHealthy = dbStatus === 'up' && redisStatus === 'up'
-  const isDegraded = dbStatus === 'up' || redisStatus === 'up'
+  const overallStatus: HealthStatus['status'] = allUp
+    ? 'healthy'
+    : anyUp
+      ? 'degraded'
+      : 'unhealthy'
 
   const healthData: HealthStatus = {
-    status: isHealthy ? 'healthy' : isDegraded ? 'degraded' : 'unhealthy',
+    status: overallStatus,
     version: process.env.npm_package_version ?? '1.0.0',
     timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
     services: {
-      database: dbStatus,
-      redis: redisStatus,
+      database,
+      redis: redisService,
     },
-    uptime: process.uptime(),
   }
 
-  const httpStatus = isHealthy ? 200 : isDegraded ? 207 : 503
+  const httpStatus = overallStatus === 'healthy' ? 200 : overallStatus === 'degraded' ? 207 : 503
 
-  return NextResponse.json(
-    { success: isHealthy, data: healthData },
-    { status: httpStatus },
-  )
+  return NextResponse.json({ success: allUp, data: healthData }, { status: httpStatus })
 }
