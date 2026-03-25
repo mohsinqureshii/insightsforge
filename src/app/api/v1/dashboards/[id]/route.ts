@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/rbac'
 import type { ApiResponse, Dashboard, DashboardWidget } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const widgetPositionSchema = z.object({
   x: z.number(),
   y: z.number(),

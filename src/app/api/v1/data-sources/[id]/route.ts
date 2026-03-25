@@ -6,6 +6,8 @@ import { requirePermission } from '@/lib/rbac'
 import { encryptCredential, decryptCredential } from '@/lib/encryption'
 import type { ApiResponse, DataSource } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional().nullable(),

@@ -8,6 +8,8 @@ import { invalidateFlagCache, getAllFlagsForTenant } from '@/lib/feature-flags'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { FlagScope, Plan } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 const CreateFlagSchema = z.object({
   key: z.string().regex(/^[a-z0-9_]+$/).min(1).max(64),
   description: z.string().max(500).optional(),

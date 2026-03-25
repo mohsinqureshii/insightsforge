@@ -6,6 +6,8 @@ import { checkTenantLimit, getDefaultTenantSettings } from '@/lib/tenant'
 import { z } from 'zod'
 import type { ApiResponse, TenantWithSettings } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const updateTenantSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   settings: z

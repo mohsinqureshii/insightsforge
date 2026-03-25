@@ -6,6 +6,8 @@ import { TOTP, Secret } from 'otpauth'
 import QRCode from 'qrcode'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 interface MfaSetupData {
   secret: string
   qrCodeDataUrl: string

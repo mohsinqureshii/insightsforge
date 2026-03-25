@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/rbac'
 import type { ApiResponse, PaginatedResponse, Share } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const listQuerySchema = z.object({
   resourceType: z.enum(['report', 'dashboard']),
   resourceId: z.string().min(1),

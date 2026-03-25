@@ -6,6 +6,8 @@ import { requirePermission } from '@/lib/rbac'
 import { checkTenantLimit } from '@/lib/tenant'
 import type { ApiResponse, PaginatedResponse, Report } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   pageSize: z.coerce.number().min(1).max(100).default(20),

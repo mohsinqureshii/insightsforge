@@ -6,6 +6,8 @@ import { generateApiKey, hashApiKey } from '@/lib/auth-utils'
 import { z } from 'zod'
 import type { ApiResponse, ApiKey } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const createKeySchema = z.object({
   name: z.string().min(1).max(100),
   scopes: z

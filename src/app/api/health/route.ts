@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 interface ServiceStatus {
   status: 'up' | 'down'
   latencyMs?: number

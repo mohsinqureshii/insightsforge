@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 export const ONBOARDING_STEPS = [
   'invite_team',
   'connect_data_source',

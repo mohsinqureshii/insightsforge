@@ -7,6 +7,8 @@ import { applyRateLimit } from '@/lib/api-middleware'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { AlertCondition, AlertSeverity, NotificationChannel } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 const CreateAlertRuleSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),

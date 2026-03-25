@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/rbac'
 import type { ApiResponse, Schedule } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 // Basic cron expression validator: validates the 5-field standard cron format
 function isValidCronExpression(expr: string): boolean {
   const fields = expr.trim().split(/\s+/)

@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { applyRateLimit } from '@/lib/api-middleware'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const MAX_RESULTS_PER_TYPE = 5
 
 interface SearchResult {

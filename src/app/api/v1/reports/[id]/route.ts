@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission, requireOwnerOrRole } from '@/lib/rbac'
 import type { ApiResponse, Report } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional().nullable(),

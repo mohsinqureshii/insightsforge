@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/rbac'
 import { decryptCredential } from '@/lib/encryption'
 
+export const dynamic = 'force-dynamic'
+
 const exportQuerySchema = z.object({
   format: z.enum(['csv', 'excel', 'json']).default('csv'),
 })

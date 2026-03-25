@@ -7,6 +7,8 @@ import { getConnector } from '@/lib/connectors'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { FieldDefinition } from '@/lib/connectors/base'
 
+export const dynamic = 'force-dynamic'
+
 type Params = { params: { id: string } }
 
 // GET /api/v1/data-sources/:id/fields

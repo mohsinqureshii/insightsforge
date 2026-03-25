@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { Plan } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/v1/announcements
  * Returns currently active announcements for the authenticated tenant/plan.

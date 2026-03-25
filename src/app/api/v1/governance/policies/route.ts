@@ -8,6 +8,8 @@ import { requireRole, AuthorizationError } from '@/lib/rbac'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { PolicyType, MaskingStrategy } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 const CreatePolicySchema = z.object({
   dataSourceId: z.string().cuid(),
   name: z.string().min(1).max(120),

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { collectMetrics, toPrometheusText } from '@/lib/monitoring/metrics'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const METRICS_TOKEN = process.env.METRICS_TOKEN
 
 /**

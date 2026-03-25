@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { requirePermission } from '@/lib/rbac'
 import type { ApiResponse, PaginatedResponse, Dashboard } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   pageSize: z.coerce.number().min(1).max(100).default(20),

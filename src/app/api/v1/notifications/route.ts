@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { applyRateLimit } from '@/lib/api-middleware'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 const MarkReadSchema = z.object({
   ids: z.array(z.string().cuid()).optional(), // if omitted, marks all
   status: z.enum(['read', 'dismissed']).default('read'),

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import type { ApiResponse, TenantSettings } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 type BrandingData = {
   logoUrl: string | null
   primaryColour: string | null

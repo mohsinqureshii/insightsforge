@@ -7,6 +7,8 @@ import { applyRateLimit } from '@/lib/api-middleware'
 import type { ApiResponse } from '@/types/insightsforge'
 import type { AnnouncementType, Plan } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 const CreateSchema = z.object({
   title: z.string().min(1).max(120),
   body: z.string().min(1).max(2000),

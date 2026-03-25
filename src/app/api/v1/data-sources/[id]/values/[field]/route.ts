@@ -6,6 +6,8 @@ import { decryptCredential } from '@/lib/encryption'
 import { getConnector } from '@/lib/connectors'
 import type { ApiResponse } from '@/types/insightsforge'
 
+export const dynamic = 'force-dynamic'
+
 type Params = { params: { id: string; field: string } }
 
 // GET /api/v1/data-sources/:id/values/:field
