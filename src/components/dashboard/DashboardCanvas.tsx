@@ -2,8 +2,6 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
-import 'react-grid-layout/css/styles.css'
-import 'react-resizable/css/styles.css'
 import { useDashboardStore } from '@/stores/dashboard.store'
 import { Widget } from '@/components/dashboard/Widget'
 import { AddWidgetPanel } from '@/components/dashboard/AddWidgetPanel'
