@@ -25,17 +25,16 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: Home },
-  { label: 'Dashboards', href: '/dashboard/dashboards', icon: LayoutDashboard },
-  { label: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { label: 'Data Sources', href: '/dashboard/data-sources', icon: Database },
-  { label: 'Folders', href: '/dashboard/folders', icon: FolderOpen },
-  { label: 'Favourites', href: '/dashboard/favourites', icon: Star },
+  { label: 'Dashboards', href: '/dashboards', icon: LayoutDashboard },
+  { label: 'Reports', href: '/reports', icon: BarChart3 },
+  { label: 'Data Sources', href: '/data-sources', icon: Database },
+  { label: 'Favourites', href: '/favourites', icon: Star },
 ]
 
 const settingsNavItems: NavItem[] = [
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-  { label: 'Team', href: '/dashboard/settings/team', icon: Users },
-  { label: 'API Keys', href: '/dashboard/settings/api-keys', icon: Key },
+  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Team', href: '/settings/team', icon: Users },
+  { label: 'API Keys', href: '/settings/api-keys', icon: Key },
 ]
 
 function NavLink({ item }: { item: NavItem }) {

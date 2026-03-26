@@ -90,11 +90,11 @@ export function Header({ userName, userEmail, userImage, pageTitle }: HeaderProp
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+            <DropdownMenuItem onClick={() => router.push('/profile')}>
               <User className="h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
               <Settings className="h-4 w-4" />
               Settings
             </DropdownMenuItem>
