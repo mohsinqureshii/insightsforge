@@ -102,7 +102,7 @@ async function main() {
     create: {
       tenantId: demoTenant.id,
       userId: adminUser.id,
-      role: 'tenant_admin',
+      role: 'super_admin',
       inviteStatus: 'accepted',
       joinedAt: new Date(),
     },
